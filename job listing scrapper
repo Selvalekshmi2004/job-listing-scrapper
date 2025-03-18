@@ -1,0 +1,44 @@
+import csv
+from apify_client import ApifyClient
+# Initialize the ApifyClient with your API token
+client = ApifyClient("apify_api_7NgVnzwMiegsPely4RwJdGdZty8cTd23OTK1")
+# First Actor input and execution: Web Developer in Bangalore
+web_developer_input = {
+    "position": "web developer",
+    "country": "IN",
+    "location": "Bangalore",
+    "maxItems": 25,
+    "parseCompanyDetails": False,
+    "saveOnlyUniqueItems": True,
+    "followApplyRedirects": False,
+}
+web_developer_run = client.actor("hMvNSpz3JnHgl5jkh").call(run_input=web_developer_input)
+web_developer_items = client.dataset(web_developer_run["defaultDatasetId"]).list_items().items
+# Second Actor input and execution: Java Developer
+java_developer_input = {
+    "maxRecords": 20,
+    "keywords": "Java Developer",
+}
+java_developer_run = client.actor("ivanvs/linkedin-job-scraper").call(run_input=java_developer_input)
+java_developer_items = list(client.dataset(java_developer_run["defaultDatasetId"]).iterate_items())
+# Combine both datasets
+all_items = web_developer_items + java_developer_items
+# Determine all unique keys (fieldnames) across items
+all_fieldnames = set()
+for item in all_items:
+    all_fieldnames.update(item.keys())
+all_fieldnames = list(all_fieldnames)  # Convert to list for CSV writer
+# Save the combined results to a CSV file
+csv_file = "combined_jobs.csv"
+if all_items:
+    with open(csv_file, mode="w", newline="", encoding="utf-8") as file:
+        writer = csv.DictWriter(file, fieldnames=all_fieldnames)
+        writer.writeheader()
+        # Fill missing fields with empty strings and write rows
+        writer.writerows({key: item.get(key, "") for key in all_fieldnames} for item in all_items)
+    print(f"💾 Data saved to {csv_file}")
+else:
+    print("No data found to save.")
+# Print dataset links for reference
+print("Web Developer Dataset: https://console.apify.com/storage/datasets/" + web_developer_run["defaultDatasetId"])
+print("Java Developer Dataset: https://console.apify.com/storage/datasets/" + java_developer_run["defaultDatasetId"])
